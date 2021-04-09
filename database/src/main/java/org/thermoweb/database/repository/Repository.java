@@ -1,5 +1,6 @@
 package org.thermoweb.database.repository;
 
+import org.thermoweb.core.config.Configuration;
 import org.thermoweb.database.annotations.Column;
 import org.thermoweb.database.annotations.Entity;
 import org.thermoweb.database.annotations.Id;
@@ -22,9 +23,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.StringJoiner;
+
+import static org.thermoweb.database.conf.DatabaseConfiguration.PASSWORD;
+import static org.thermoweb.database.conf.DatabaseConfiguration.URL;
+import static org.thermoweb.database.conf.DatabaseConfiguration.USER;
 
 public class Repository<T> {
-    private static final int DEFAULT_TIEMOUT = 30;
+    private static final int DEFAULT_TIMEOUT = 30;
+    private static final String INSERT_STATEMENT = "INSERT INTO %s (%s) VALUES (%s);";
 
     private final String tableName;
     private final Class<?> typeArgument;
@@ -56,14 +64,50 @@ public class Repository<T> {
         }
     }
 
+    public void save(T dto) {
+        Field[] fields = dto.getClass().getDeclaredFields();
+        StringJoiner columnJoiner = new StringJoiner(", ");
+        StringJoiner valuesJoiner = new StringJoiner(", ");
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                if (field.getType().isAnnotationPresent(Entity.class)) {
+                    return; // FIXME: handle child entity save
+                } else if (field.getType().equals(String.class)) {
+                    try {
+                        field.setAccessible(true);
+                        String value = (String) field.get(dto);
+                        field.setAccessible(false);
+
+                        if (value != null) {
+                            valuesJoiner.add(String.format("'%s'", value));
+                            columnJoiner.add(field.getAnnotation(Column.class).name());
+                        }
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            statement.setQueryTimeout(DEFAULT_TIMEOUT);
+
+            boolean isSuccess = statement.execute(String.format(INSERT_STATEMENT, tableName, columnJoiner, valuesJoiner));
+            System.out.println(isSuccess);
+        } catch (SQLException throwable) {
+            throwable.printStackTrace();
+        }
+    }
+
     public List<T> findAll() {
         return findByQuery(String.format("select * from %s", tableName));
     }
 
     public Optional<T> findById(Integer id) {
-        try (Connection connection = Repository.getConnection()) {
+        try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            statement.setQueryTimeout(DEFAULT_TIEMOUT);
+            statement.setQueryTimeout(DEFAULT_TIMEOUT);
 
             ResultSet rs = statement.executeQuery(
                     String.format("select * from %s where %s = %d", tableName, idField.getName(), id)
@@ -82,9 +126,9 @@ public class Repository<T> {
     }
 
     protected List<T> findByQuery(String query) {
-        try (Connection connection = Repository.getConnection()) {
+        try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            statement.setQueryTimeout(DEFAULT_TIEMOUT);
+            statement.setQueryTimeout(DEFAULT_TIMEOUT);
 
             ResultSet rs = statement.executeQuery(query);
 
@@ -101,8 +145,11 @@ public class Repository<T> {
         return Collections.emptyList();
     }
 
-    private static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:sample.db");
+    private Connection getConnection() throws SQLException {
+        Properties bddProperties = new Properties();
+        bddProperties.put("user", Configuration.getProperty(USER));
+        bddProperties.put("password", Configuration.getProperty(PASSWORD));
+        return DriverManager.getConnection(Configuration.getProperty(URL), bddProperties);
     }
 
     private T createDto(ResultSet rs) {
@@ -141,7 +188,8 @@ public class Repository<T> {
         return object;
     }
 
-    private void addChild(ResultSet rs, T object, Field field) throws InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, SQLException {
+    private void addChild(ResultSet rs, T object, Field field) throws InstantiationException, IllegalAccessException,
+            InvocationTargetException, NoSuchMethodException, SQLException {
         Field childIdField = Arrays.stream(field.getType().getDeclaredFields())
                 .filter(f -> f.isAnnotationPresent(Id.class))
                 .findFirst()

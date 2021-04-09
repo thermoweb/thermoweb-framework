@@ -1,4 +1,5 @@
 org\thermoweb\database\repository\Repository.class
 org\thermoweb\database\annotations\Column.class
 org\thermoweb\database\annotations\Entity.class
+org\thermoweb\database\conf\DatabaseConfiguration.class
 org\thermoweb\database\annotations\Id.class
