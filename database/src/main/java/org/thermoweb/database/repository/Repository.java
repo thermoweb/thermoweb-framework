@@ -1,16 +1,15 @@
 package org.thermoweb.database.repository;
 
-import org.thermoweb.core.config.Configuration;
 import org.thermoweb.database.annotations.Column;
 import org.thermoweb.database.annotations.Entity;
 import org.thermoweb.database.annotations.Id;
+import org.thermoweb.database.connection.ConnectionManager;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -23,12 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.StringJoiner;
-
-import static org.thermoweb.database.conf.DatabaseConfiguration.PASSWORD;
-import static org.thermoweb.database.conf.DatabaseConfiguration.URL;
-import static org.thermoweb.database.conf.DatabaseConfiguration.USER;
 
 public class Repository<T> {
     private static final int DEFAULT_TIMEOUT = 30;
@@ -89,7 +83,7 @@ public class Repository<T> {
             }
         }
 
-        try (Connection connection = getConnection()) {
+        try (Connection connection = ConnectionManager.getConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(DEFAULT_TIMEOUT);
 
@@ -105,7 +99,7 @@ public class Repository<T> {
     }
 
     public Optional<T> findById(Integer id) {
-        try (Connection connection = getConnection()) {
+        try (Connection connection = ConnectionManager.getConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(DEFAULT_TIMEOUT);
 
@@ -126,7 +120,7 @@ public class Repository<T> {
     }
 
     protected List<T> findByQuery(String query) {
-        try (Connection connection = getConnection()) {
+        try (Connection connection = ConnectionManager.getConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(DEFAULT_TIMEOUT);
 
@@ -143,13 +137,6 @@ public class Repository<T> {
         }
 
         return Collections.emptyList();
-    }
-
-    private Connection getConnection() throws SQLException {
-        Properties bddProperties = new Properties();
-        bddProperties.put("user", Configuration.getProperty(USER));
-        bddProperties.put("password", Configuration.getProperty(PASSWORD));
-        return DriverManager.getConnection(Configuration.getProperty(URL), bddProperties);
     }
 
     private T createDto(ResultSet rs) {
