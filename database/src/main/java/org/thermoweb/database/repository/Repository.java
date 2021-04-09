@@ -13,8 +13,11 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +30,9 @@ import java.util.StringJoiner;
 public class Repository<T> {
     private static final int DEFAULT_TIMEOUT = 30;
     private static final String INSERT_STATEMENT = "INSERT INTO %s (%s) VALUES (%s);";
+
+    private static final String postgreTimestampPattern = "YYYY-MM-dd HH24:MI:ss";
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");;
 
     private final String tableName;
     private final Class<?> typeArgument;
@@ -50,7 +56,11 @@ public class Repository<T> {
         for (Field field : typeArgument.getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class)) {
                 field.setAccessible(true);
-                columnMap.put(field.getAnnotation(Column.class).name(), field);
+                String bddFieldName = field.getAnnotation(Column.class).name();
+                if (bddFieldName.equals("")) {
+                    bddFieldName = field.getName();
+                }
+                columnMap.put(bddFieldName, field);
             }
             if (field.isAnnotationPresent(Id.class)) {
                 idField = field;
@@ -58,26 +68,37 @@ public class Repository<T> {
         }
     }
 
-    public void save(T dto) {
+    public T save(T dto) throws SQLException, IllegalAccessException {
         Field[] fields = dto.getClass().getDeclaredFields();
         StringJoiner columnJoiner = new StringJoiner(", ");
         StringJoiner valuesJoiner = new StringJoiner(", ");
         for (Field field : fields) {
             if (field.isAnnotationPresent(Column.class)) {
                 if (field.getType().isAnnotationPresent(Entity.class)) {
-                    return; // FIXME: handle child entity save
-                } else if (field.getType().equals(String.class)) {
-                    try {
-                        field.setAccessible(true);
-                        String value = (String) field.get(dto);
-                        field.setAccessible(false);
+                    // FIXME: handle child entity save
+                    Field childIdField = Arrays.stream(field.getType().getDeclaredFields())
+                            .filter(f -> f.isAnnotationPresent(Id.class))
+                            .findFirst()
+                            .orElseThrow();
+                    childIdField.setAccessible(true);
+                    field.setAccessible(true);
+                    Integer value = (Integer) childIdField.get(field.get(dto));
+                    valuesJoiner.add(String.format("%d", value));
+                    columnJoiner.add(field.getAnnotation(Column.class).name());
+                } else {
+                    field.setAccessible(true);
+                    Object value = field.get(dto);
+                    field.setAccessible(false);
 
-                        if (value != null) {
+                    if (value != null) {
+                        columnJoiner.add(field.getAnnotation(Column.class).name());
+                        if (field.getType().equals(String.class)) {
                             valuesJoiner.add(String.format("'%s'", value));
-                            columnJoiner.add(field.getAnnotation(Column.class).name());
+                        } else if (field.getType().equals(LocalDateTime.class)) {
+                            valuesJoiner.add(String.format("TO_TIMESTAMP('%s', '%s')",
+                                    formatter.format((LocalDateTime) value),
+                                    postgreTimestampPattern));
                         }
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
                     }
                 }
             }
@@ -86,12 +107,17 @@ public class Repository<T> {
         try (Connection connection = ConnectionManager.getConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(DEFAULT_TIMEOUT);
+            String query = String.format(INSERT_STATEMENT, tableName, columnJoiner, valuesJoiner);
+            statement.execute(query, Statement.RETURN_GENERATED_KEYS);
 
-            boolean isSuccess = statement.execute(String.format(INSERT_STATEMENT, tableName, columnJoiner, valuesJoiner));
-            System.out.println(isSuccess);
-        } catch (SQLException throwable) {
-            throwable.printStackTrace();
+            try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return findById(generatedKeys.getInt(1)).orElseThrow();
+                }
+            }
         }
+
+        throw new SQLException("failed to retrieve or create user");
     }
 
     public List<T> findAll() {
@@ -142,7 +168,7 @@ public class Repository<T> {
     private T createDto(ResultSet rs) {
         T object = null;
         try {
-            object = (T) typeArgument.getDeclaredConstructor(null).newInstance();
+            object = (T) typeArgument.getDeclaredConstructor().newInstance();
         } catch (InstantiationException | NoSuchMethodException |
                 InvocationTargetException | IllegalAccessException e) {
             e.printStackTrace();
@@ -165,6 +191,11 @@ public class Repository<T> {
                 } else if (field.getType().equals(YearMonth.class)) {
                     String textMonth = rs.getString(field.getName());
                     field.set(object, YearMonth.parse(textMonth));
+                } else if (field.getType().equals(LocalDateTime.class)) {
+                    LocalDateTime value = Optional.ofNullable(rs.getTimestamp(entry.getKey()))
+                            .map(Timestamp::toLocalDateTime)
+                            .orElse(null);
+                    field.set(object, value);
                 }
             } catch (IllegalAccessException | SQLException | InvocationTargetException |
                     InstantiationException | NoSuchMethodException e) {
@@ -177,17 +208,21 @@ public class Repository<T> {
 
     private void addChild(ResultSet rs, T object, Field field) throws InstantiationException, IllegalAccessException,
             InvocationTargetException, NoSuchMethodException, SQLException {
-        Field childIdField = Arrays.stream(field.getType().getDeclaredFields())
+        Optional<Field> childIdField = Arrays.stream(field.getType().getDeclaredFields())
                 .filter(f -> f.isAnnotationPresent(Id.class))
-                .findFirst()
-                .orElseGet(null);
-        if (childIdField!= null) {
-            Object childObject = field.getType().getDeclaredConstructor(null).newInstance();
-            childIdField.setAccessible(true);
-            if (childIdField.getType().equals(Integer.class)) {
-                childIdField.set(childObject, rs.getInt(field.getName()));
-            } else if (childIdField.getType().equals(String.class)) {
-                childIdField.set(childIdField, rs.getString(childIdField.getName()));
+                .findFirst();
+        if (childIdField.isPresent()) {
+            Field childField = childIdField.get();
+            Object childObject = field.getType().getDeclaredConstructor().newInstance();
+            childField.setAccessible(true);
+            String fieldName = field.getAnnotation(Column.class).name();
+            if (fieldName.equals("")) {
+                fieldName = field.getName();
+            }
+            if (childField.getType().equals(Integer.class)) {
+                childField.set(childObject, rs.getInt(fieldName));
+            } else if (childField.getType().equals(String.class)) {
+                childField.set(childIdField, rs.getString(childField.getName()));
             }
             field.set(object, childObject);
         }
