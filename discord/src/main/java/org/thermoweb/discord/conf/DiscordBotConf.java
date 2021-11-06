@@ -3,7 +3,8 @@ package org.thermoweb.discord.conf;
 import org.thermoweb.core.config.Property;
 
 public enum DiscordBotConf implements Property {
-    TOKEN("token");
+    TOKEN("token"),
+    SELF_ID("self-id");
 
     private final String name;
 
