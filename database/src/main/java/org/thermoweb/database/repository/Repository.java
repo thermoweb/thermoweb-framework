@@ -112,7 +112,7 @@ public class Repository<T> {
 
             try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
-                    return findById(generatedKeys.getInt(1)).orElseThrow();
+                    return findById(generatedKeys.getInt(this.idField.getName())).orElseThrow();
                 }
             }
         }
