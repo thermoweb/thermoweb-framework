@@ -20,4 +20,7 @@ public class Answer {
 
     @Column(name = "content")
     private String content;
+
+    @Column(name = "embedded_img")
+    private String embeddedImg;
 }

@@ -1,8 +1,10 @@
 package org.thermoweb.discord.listener;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import org.thermoweb.core.config.Configuration;
 import org.thermoweb.discord.database.model.Answer;
 import org.thermoweb.discord.service.AnswerService;
@@ -35,7 +37,12 @@ public class RandomAnswer extends ListenerAdapter {
             user = userService.getByCodeOrCreateUser(user);
             Answer answer = answerService.getRandomAnswerForUser(user).orElseThrow();
             String message = answerService.createAnswerForUser(answer, user);
-            event.getMessage().reply(String.format(message, author.getId())).queue();
+            MessageAction messageAction = event.getMessage().reply(String.format(message, author.getId()));
+            if (answer.getEmbeddedImg() != null) {
+                messageAction = messageAction.embed(new EmbedBuilder().setImage(answer.getEmbeddedImg()).build());
+            }
+
+            messageAction.queue();
             answerService.addAnswerHistory(answer, user);
         }
     }
