@@ -17,14 +17,21 @@ public class AnswerService {
     private final AnswerRepository answerRepository;
     private final AnswerHistoryRepository answerHistoryRepository;
     private final Random rand = new Random();
+    private Integer pastResponsesUnduplicateLimit;
 
     public AnswerService() {
         answerRepository = new AnswerRepository();
         answerHistoryRepository = new AnswerHistoryRepository();
+        pastResponsesUnduplicateLimit = 10;
+    }
+
+    public AnswerService(int pastResponsesUnduplicateLimit) {
+        this();
+        this.pastResponsesUnduplicateLimit = pastResponsesUnduplicateLimit;
     }
 
     public Optional<Answer> getRandomAnswerForUser(User user) {
-        List<Answer> answers = answerRepository.getAvailableAnswersForUser(user);
+        List<Answer> answers = answerRepository.getAvailableAnswersForUserSmart(user, pastResponsesUnduplicateLimit);
         int answerId = rand.nextInt(answers.size());
 
         return Optional.ofNullable(answers.get(answerId));

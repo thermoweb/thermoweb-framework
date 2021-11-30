@@ -17,4 +17,13 @@ public class AnswerRepository extends Repository<Answer> {
                 "AND (ans.user_specific IS NULL OR ans.user_specific = %d);";
         return findByQuery(String.format(queryTemplate, user.getId(), user.getId()));
     }
+
+    public List<Answer> getAvailableAnswersForUserSmart(User user, int limit) {
+        String queryTemplate = "SELECT * FROM answers ans " +
+                "WHERE ans.id NOT IN (SELECT answer_id FROM answer_history ORDER BY answer_date DESC LIMIT ?) " +
+                "AND ans.id NOT IN (SELECT answer_id FROM answer_history WHERE user_id = ? ORDER BY answer_date DESC LIMIT ?) " +
+                "AND (ans.user_specific IS NULL OR ans.user_specific = ?);";
+
+        return findByQuery(queryTemplate, limit, user.getId(), limit, user.getId());
+    }
 }

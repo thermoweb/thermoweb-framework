@@ -10,6 +10,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -32,7 +33,8 @@ public class Repository<T> {
     private static final String INSERT_STATEMENT = "INSERT INTO %s (%s) VALUES (%s);";
 
     private static final String postgreTimestampPattern = "YYYY-MM-dd HH24:MI:ss";
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");;
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    ;
 
     private final String tableName;
     private final Class<?> typeArgument;
@@ -134,7 +136,7 @@ public class Repository<T> {
             );
 
             if (rs.next()) {
-                return Optional.ofNullable(createDto(rs));
+                return Optional.ofNullable(createEntity(rs));
             }
 
             return Optional.empty();
@@ -145,19 +147,13 @@ public class Repository<T> {
         return Optional.empty();
     }
 
-    protected List<T> findByQuery(String query) {
+    protected List<T> findByQuery(String query, Object... args) {
         try (Connection connection = ConnectionManager.getConnection()) {
-            Statement statement = connection.createStatement();
-            statement.setQueryTimeout(DEFAULT_TIMEOUT);
-
-            ResultSet rs = statement.executeQuery(query);
-
-            List<T> resultList = new ArrayList<>();
-            while (rs.next()) {
-                resultList.add(createDto(rs));
+            PreparedStatement statement = connection.prepareStatement(query);
+            for (int i = 0; i < args.length; i++) {
+                statement.setObject(i + 1, args[i]);
             }
-
-            return resultList;
+            return findByPreparedStatement(statement);
         } catch (SQLException throwable) {
             throwable.printStackTrace();
         }
@@ -165,7 +161,19 @@ public class Repository<T> {
         return Collections.emptyList();
     }
 
-    private T createDto(ResultSet rs) {
+    private List<T> findByPreparedStatement(PreparedStatement statement) throws SQLException {
+        statement.setQueryTimeout(DEFAULT_TIMEOUT);
+        ResultSet rs = statement.executeQuery();
+
+        List<T> resultList = new ArrayList<>();
+        while (rs.next()) {
+            resultList.add(createEntity(rs));
+        }
+
+        return resultList;
+    }
+
+    private T createEntity(ResultSet rs) {
         T object = null;
         try {
             object = (T) typeArgument.getDeclaredConstructor().newInstance();
