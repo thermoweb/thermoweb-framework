@@ -1,2 +1,3 @@
-org\thermoweb\core\config\Property.class
-org\thermoweb\core\config\Configuration.class
+org/thermoweb/core/utils/PatchUtils.class
+org/thermoweb/core/config/Property.class
+org/thermoweb/core/config/Configuration.class

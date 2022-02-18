@@ -18,10 +18,17 @@ public class RandomAnswer extends ListenerAdapter {
 
     private final UserService userService;
     private final AnswerService answerService;
+    private int pastResponsesUndiplicateLimit;
 
     public RandomAnswer() {
         this.userService = new UserService();
         this.answerService = new AnswerService();
+        this.pastResponsesUndiplicateLimit = 10;
+    }
+
+    public RandomAnswer(int pastResponsesUndiplicateLimit) {
+        this();
+        this.pastResponsesUndiplicateLimit = pastResponsesUndiplicateLimit;
     }
 
     @Override
@@ -35,7 +42,7 @@ public class RandomAnswer extends ListenerAdapter {
                     .name(author.getName())
                     .build();
             user = userService.getByCodeOrCreateUser(user);
-            Answer answer = answerService.getRandomAnswerForUser(user).orElseThrow();
+            Answer answer = answerService.getRandomAnswerForUser(user, pastResponsesUndiplicateLimit).orElseThrow();
             String message = answerService.createAnswerForUser(answer, user);
             MessageAction messageAction = event.getMessage().reply(String.format(message, author.getId()));
             if (answer.getEmbeddedImg() != null) {
