@@ -7,6 +7,7 @@ import org.thermoweb.discord.database.repository.AnswerHistoryRepository;
 import org.thermoweb.discord.database.repository.AnswerRepository;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -42,7 +43,7 @@ public class AnswerService {
     public void addAnswerHistory(Answer answer, User user) {
         AnswerHistory answerHistory = AnswerHistory.builder()
                 .answer(answer)
-                .datetime(LocalDateTime.now())
+                .datetime(Instant.now())
                 .user(user)
                 .build();
         try {

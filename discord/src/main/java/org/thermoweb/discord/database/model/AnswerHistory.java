@@ -9,7 +9,7 @@ import org.thermoweb.database.annotations.Column;
 import org.thermoweb.database.annotations.Entity;
 import org.thermoweb.database.annotations.Id;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -30,5 +30,5 @@ public class AnswerHistory {
     private Answer answer;
 
     @Column(name = "answer_date")
-    private LocalDateTime datetime;
+    private Instant datetime;
 }

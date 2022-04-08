@@ -1,5 +1,6 @@
 package org.thermoweb.discord.listener;
 
+import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -14,6 +15,7 @@ import java.util.List;
 
 import static org.thermoweb.discord.conf.DiscordBotConf.SELF_ID;
 
+@Slf4j
 public class RandomAnswer extends ListenerAdapter {
 
     private final UserService userService;
@@ -44,6 +46,9 @@ public class RandomAnswer extends ListenerAdapter {
             user = userService.getByCodeOrCreateUser(user);
             Answer answer = answerService.getRandomAnswerForUser(user, pastResponsesUndiplicateLimit).orElseThrow();
             String message = answerService.createAnswerForUser(answer, user);
+
+            log.debug(String.format("randow answer for user %s(%d) : %s", user.getName(), user.getId(), message));
+
             MessageAction messageAction = event.getMessage().reply(String.format(message, author.getId()));
             if (answer.getEmbeddedImg() != null) {
                 messageAction = messageAction.embed(new EmbedBuilder().setImage(answer.getEmbeddedImg()).build());
