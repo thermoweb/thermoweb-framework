@@ -9,32 +9,24 @@ import org.thermoweb.database.annotations.Column;
 import org.thermoweb.database.annotations.Entity;
 import org.thermoweb.database.annotations.Id;
 
-import java.time.Instant;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Entity(table = "answer_history")
-public class AnswerHistory {
+@Entity(table = "guilds")
+public class Guild {
 
     @Id
-    @Column
+    @Column(name = "id")
     private Integer id;
 
-    @Column(name = "user_id")
-    private User user;
+    @Column(name = "name")
+    private String name;
 
-    @Column(name = "answer_id")
-    private Answer answer;
+    @Column(name = "code")
+    private String code;
 
-    @Column(name = "answer_date")
-    private Instant datetime;
-
-    @Column(name = "channel_id")
-    private Channel channel;
-
-    @Column(name = "original_message")
-    private String originalMessage;
+    @Column(name = "owner_id")
+    private User owner;
 }

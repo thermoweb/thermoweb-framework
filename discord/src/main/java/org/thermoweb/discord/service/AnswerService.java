@@ -2,6 +2,7 @@ package org.thermoweb.discord.service;
 
 import org.thermoweb.discord.database.model.Answer;
 import org.thermoweb.discord.database.model.AnswerHistory;
+import org.thermoweb.discord.database.model.Channel;
 import org.thermoweb.discord.database.model.User;
 import org.thermoweb.discord.database.repository.AnswerHistoryRepository;
 import org.thermoweb.discord.database.repository.AnswerRepository;
@@ -40,11 +41,13 @@ public class AnswerService {
                 .replaceAll("\\{user#id}", user.getCode());
     }
 
-    public void addAnswerHistory(Answer answer, User user) {
+    public void addAnswerHistory(Answer answer, User user, Channel channel, String originalMessage) {
         AnswerHistory answerHistory = AnswerHistory.builder()
                 .answer(answer)
                 .datetime(Instant.now())
                 .user(user)
+                .channel(channel)
+                .originalMessage(originalMessage)
                 .build();
         try {
             answerHistoryRepository.save(answerHistory);

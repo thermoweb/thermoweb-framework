@@ -142,7 +142,6 @@ public class Repository<T> {
 
     private Pair<String, Object> getColumnInfos(Field field, T dto) throws IllegalAccessException {
         if (field.getType().isAnnotationPresent(Entity.class)) {
-            // FIXME: handle child entity save
             Field childIdField =
                     Arrays.stream(field.getType().getDeclaredFields())
                             .filter(f -> f.isAnnotationPresent(Id.class))
@@ -317,7 +316,7 @@ public class Repository<T> {
         }
     }
 
-    private <S> String toString(S entity) {
+    public <S> String toString(S entity) {
         if (entity == null) {
             return "";
         }
