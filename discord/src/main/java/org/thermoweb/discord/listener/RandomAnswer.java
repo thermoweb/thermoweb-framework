@@ -63,7 +63,7 @@ public class RandomAnswer extends ListenerAdapter {
 
             MessageAction messageAction = event.getMessage().reply(String.format(message, author.getId()));
             if (answer.getEmbeddedImg() != null) {
-                messageAction = messageAction.embed(new EmbedBuilder().setImage(answer.getEmbeddedImg()).build());
+                messageAction = messageAction.setEmbeds(new EmbedBuilder().setImage(answer.getEmbeddedImg()).build());
             }
 
             messageAction.queue();
@@ -71,21 +71,21 @@ public class RandomAnswer extends ListenerAdapter {
             Guild guildMessage = event.getGuild();
 
             var guild = guildService.getOrCreateGuild(org.thermoweb.discord.database.model.Guild.builder()
-                    .code(guildMessage.getId())
-                    .name(guildMessage.getName())
-                    .owner(Optional.ofNullable(guildMessage.getOwner())
-                            .map(Member::getUser)
-                            .map(this::getOrCreateUser)
-                            .orElse(null))
-                    .build())
+                            .code(guildMessage.getId())
+                            .name(guildMessage.getName())
+                            .owner(Optional.ofNullable(guildMessage.getOwner())
+                                    .map(Member::getUser)
+                                    .map(this::getOrCreateUser)
+                                    .orElse(null))
+                            .build())
                     .orElse(null);
 
 
             Channel channel = channelService.getOrCreateChannel(Channel.builder()
-                    .guild(guild)
-                    .code(channelMessage.getId())
-                    .name(channelMessage.getName())
-                    .build())
+                            .guild(guild)
+                            .code(channelMessage.getId())
+                            .name(channelMessage.getName())
+                            .build())
                     .orElse(null);
 
             answerService.addAnswerHistory(answer, user, channel, event.getMessage().getContentDisplay());
