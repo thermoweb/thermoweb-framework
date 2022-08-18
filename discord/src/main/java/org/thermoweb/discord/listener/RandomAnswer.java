@@ -47,7 +47,7 @@ public class RandomAnswer extends ListenerAdapter {
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        List<User> mentionedUsers = event.getMessage().getMentionedUsers();
+        List<User> mentionedUsers = event.getMessage().getMentions().getUsers();
         if (!mentionedUsers.isEmpty()
                 && mentionedUsers.stream().anyMatch(u -> u.getId().equals(Configuration.getProperty(SELF_ID)))) {
             var author = event.getMessage().getAuthor();

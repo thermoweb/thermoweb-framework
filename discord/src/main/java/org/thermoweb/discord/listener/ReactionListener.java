@@ -21,7 +21,7 @@ public class ReactionListener extends ListenerAdapter {
   @Override
   public void onMessageReactionAdd(@NotNull MessageReactionAddEvent event) {
     super.onMessageReactionAdd(event);
-    String emote = event.getReactionEmote().getName();
+    String emote = event.getReaction().getEmoji().getName();
     Optional.ofNullable(commandList.get(emote)).ifPresent(cmd -> cmd.execute(event));
     log.debug(event.toString());
   }
